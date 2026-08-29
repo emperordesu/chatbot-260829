@@ -4,6 +4,41 @@ from openai import OpenAI
 # ---- 페이지 설정 ----
 st.set_page_config(page_title="💻 노트북 비교분석 챗봇", page_icon="💻")
 
+# ---- 브랜드별 2025년 이후 출시 모델 목록 ----
+# 참고: 노트북 라인업은 자주 갱신되므로 최신 모델은 브랜드 공식 홈페이지에서 추가로 확인하는 것을 권장합니다.
+LAPTOP_MODELS = {
+    "삼성 (Samsung)": [
+        "갤럭시북5 프로 (2025)",
+        "갤럭시북5 프로 360 (2025)",
+        "갤럭시북5 (2025)",
+        "갤럭시북5 엣지 (2025)",
+        "갤럭시북6 Pro (2026)",
+        "갤럭시북6 Ultra (2026)",
+        "갤럭시북6 (2026)",
+    ],
+    "LG (그램)": [
+        "LG 그램 프로 (2025년형)",
+        "LG 그램 프로 360 (2025년형)",
+        "LG 그램 (2025년형)",
+        "LG 그램북 (2025년형)",
+        "LG 그램 프로 AI (2026년형, 16/17형)",
+        "LG 그램 프로 360 AI (2026년형, 16형)",
+        "LG 그램 AI (2026년형, 14/15형)",
+        "LG 그램북 AI (2026년형, 15/16형)",
+    ],
+    "에이서 (Acer)": [
+        "Acer Swift 14 AI (2025)",
+        "Acer Swift 16 AI (2025)",
+        "Acer Swift Go 16 AI (2026)",
+        "Acer Aspire 16 (팬서레이크, 2026)",
+        "Acer Aspire Lite 16 (2025)",
+        "Acer Spin (2in1, 2025)",
+        "Acer Nitro (게이밍, 2025~2026)",
+        "Acer Predator (게이밍, 2025~2026)",
+    ],
+    "기타 브랜드 (직접 입력)": [],
+}
+
 # ---- 제목 및 설명 ----
 st.title("💻 노트북 비교분석 챗봇")
 st.write(
@@ -35,13 +70,38 @@ else:
 사용자가 아직 비교할 노트북을 알려주지 않았다면, 예산과 주 사용 목적을 먼저 물어봐서
 적절한 추천을 할 수 있도록 대화를 이끌어주세요."""
 
-    # ---- 사이드바: 빠른 비교 입력 ----
+    # ---- 사이드바: 브랜드/모델 선택 후 빠른 비교 ----
     with st.sidebar:
         st.header("⚡ 빠른 비교")
-        st.caption("비교할 노트북 모델을 입력하면 바로 분석해드립니다.")
-        laptop_a = st.text_input("노트북 A", placeholder="예: LG 그램 17")
-        laptop_b = st.text_input("노트북 B", placeholder="예: 맥북 에어 M3")
-        laptop_c = st.text_input("노트북 C (선택)", placeholder="예: 삼성 갤럭시북4 프로")
+        st.caption("브랜드를 선택하면 2025년 이후 출시 모델이 표시됩니다. 여러 브랜드/모델을 함께 선택할 수 있어요.")
+
+        selected_brands = st.multiselect(
+            "브랜드 선택",
+            options=list(LAPTOP_MODELS.keys()),
+            placeholder="비교할 브랜드를 선택하세요",
+        )
+
+        # 선택된 브랜드에 속한 모델을 모두 모아 후보 목록 구성
+        available_models = []
+        for brand in selected_brands:
+            available_models.extend(LAPTOP_MODELS[brand])
+
+        selected_models = []
+        if available_models:
+            selected_models = st.multiselect(
+                "모델 선택 (2개 이상)",
+                options=available_models,
+                placeholder="비교할 모델을 선택하세요",
+            )
+
+        # 기타 브랜드는 직접 입력
+        custom_models_raw = ""
+        if "기타 브랜드 (직접 입력)" in selected_brands:
+            custom_models_raw = st.text_area(
+                "기타 브랜드 모델 직접 입력 (쉼표로 구분)",
+                placeholder="예: 에이수스 젠북 14, 맥북 에어 M4",
+            )
+
         purpose = st.selectbox(
             "주 사용 목적",
             ["선택 안 함", "일반 사무/학습", "영상/사진 편집", "게이밍", "프로그래밍/개발", "휴대성 중시"],
@@ -59,9 +119,10 @@ else:
 
     # ---- 사이드바 버튼 클릭 시 자동 프롬프트 생성 ----
     if compare_clicked:
-        models = [m for m in [laptop_a, laptop_b, laptop_c] if m.strip()]
+        custom_models = [m.strip() for m in custom_models_raw.split(",") if m.strip()]
+        models = selected_models + custom_models
         if len(models) < 2:
-            st.sidebar.warning("최소 2개 이상의 노트북 모델을 입력해주세요.")
+            st.sidebar.warning("최소 2개 이상의 노트북 모델을 선택(또는 입력)해주세요.")
         else:
             auto_prompt = f"다음 노트북들을 비교분석해줘: {', '.join(models)}."
             if purpose != "선택 안 함":
