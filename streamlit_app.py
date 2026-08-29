@@ -3,7 +3,7 @@ import streamlit.components.v1 as components
 from openai import OpenAI
 
 # ---- 페이지 설정 ----
-st.set_page_config(page_title="🎬 강의 영상 도우미", page_icon="🎬", layout="wide")
+st.set_page_config(page_title="수업 못 들었어요? 제가 알려줄게요", page_icon="🎬", layout="wide")
 
 # ---- 테마 CSS (보라/틸 톤) ----
 st.markdown(
@@ -150,18 +150,6 @@ Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
 **실습**: 설치를 마친 수강생들은 실제로 간단한 웹페이지(예: 벽돌깨기 게임)를 Claude Code로 직접 만들어보는 시간을 갖습니다.
 """,
     },
-    {
-        "icon": "🏁", "title": "실습 결과 & 마무리", "start_seconds": 16724,
-        "time_label": "04:38:44",
-        "summary": """
-이 구간은 강사가 직접 전달하는 말투 그대로 정리했습니다.
-
-- "index.html이 뭔지 알아야 뭔가를 만들 수 있는 거잖아요. 이런 기본이 되는 걸 여러분이 조금씩 배워가는 거예요." — 아직 결과물이 안 보이는 분들은 제가 화면 공유로 하나씩 직접 봐드리면서, 왜 안 됐는지를 같이 짚어드립니다.
-- "명령을 그대로 치는 게 아니라, 내가 원하는 걸 구체적으로 설명해줘야 방향을 잡아줄 수 있어요. 그게 없으면 얘(AI)는 그냥 일반적인 걸 만들어줘요." — 이게 바로 여러분에게 프롬프트 엔지니어링 지식이 필요한 이유라고 저는 강조합니다.
-- "배포는 이번 주나 다음 주에 하는 거지, 오늘은 일단 설치하고 실습해본 것까지가 목표예요." — 오늘은 여기까지 정리하고, 앞으로 3개월(160시간) 동안 혼자 만들어보는 경험부터 시작해서 팀 프로젝트로 넓혀가겠다고 말씀드립니다.
-- "내가 만들 줄 알아야지 팀워크를 하더라도 뭔가 역할이 주어지잖아요." — 그래서 처음에는 무조건 1인으로 전부 만들어보는 시간을 갖는 거라고 다시 한번 확인시켜 드립니다.
-""",
-    },
 ]
 
 # ---- 세션 상태 초기화 ----
@@ -181,6 +169,8 @@ with st.sidebar:
             st.session_state.selected_cat = i
 
 # ================= 메인 화면 =================
+st.title("수업 못 들었어요? 제가 알려줄게요")
+
 cat = CATEGORIES[st.session_state.selected_cat]
 
 st.markdown(f'<div class="cat-header">{cat["icon"]} {cat["title"]}</div>', unsafe_allow_html=True)
