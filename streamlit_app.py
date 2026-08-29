@@ -51,62 +51,65 @@ VIMEO_VIDEO_ID = "1221651006"
 VIMEO_HASH = "ecf1d87214"
 
 # ---- 카테고리 데이터 (영상 흐름 순서대로) ----
-# start_seconds: 해당 구간이 시작되는 영상 내 시점
-# summary: 마크다운 형식 (코드블록 포함 가능)
 CATEGORIES = [
     {
-        "icon": "🗂️", "title": "수업 운영 안내", "start_seconds": 0,
+        "icon": "📚", "title": "커리큘럼 소개", "start_seconds": 0,
         "time_label": "00:00:00",
         "summary": """
-강사는 수업 시작과 함께 화면과 음성이 정상적으로 전달되는지부터 확인하고, **Discord를 이번 과정의 공식 소통 채널**로 지정합니다.
+수업 시작과 함께 화면·음성이 잘 전달되는지 확인하고, **Discord를 이번 과정의 공식 소통 채널**로 지정합니다. 이해도 체크는 이해했으면 **O**, 애매하면 **물음표(?)**, 잘 모르겠으면 **X**로 표시하는 방식이며, 아직 가입·체크를 완료하지 못한 수강생이 많아 1교시 안에 완료해달라고 당부합니다. 설치·세팅이 어려운 경우 1교시 이후 20~30분간 원격으로 개별 지원하겠다고 안내합니다.
 
-- 이해도 체크 규칙: 강사가 안내 사항을 올리면 수강생은 이해했으면 **O**, 애매하면 **물음표(?)**, 잘 모르겠으면 **X**로 반응을 남기는 방식으로 진행됩니다.
-- 아직 Discord에 가입하지 않았거나 체크를 완료하지 않은 수강생이 절반 가까이 되어, 1교시 안에는 반드시 가입과 체크를 마쳐달라고 여러 차례 강조합니다.
-- 설치나 세팅이 어려운 수강생을 위해 1교시가 끝난 뒤 약 20~30분간 원격으로 개별 지원을 하겠다고 안내합니다.
-""",
-    },
-    {
-        "icon": "📚", "title": "커리큘럼 소개", "start_seconds": 309,
-        "time_label": "00:05:09",
-        "summary": """
-이번 과정은 총 **160시간**으로 구성되며, 사전에 공유된 커리큘럼은 확정본이 아니라 초안이라는 점을 분명히 합니다.
+이어서 커리큘럼을 소개합니다.
 
-- 실제 진도는 수강생들의 이해 속도에 맞춰 유동적으로 조절될 예정이며, 진도가 빠르면 추가 주제를 더 다룰 수 있다고 언급합니다.
-- 학습 순서는 기본 개념(터미널 사용, 파일 구조 등)을 먼저 다진 뒤, 여기에 AI 기능을 점진적으로 얹어가는 방식으로 설계되어 있습니다.
-- 왕초보 수강생들을 배려해 사전에 Claude Code로 직접 제작한 학습 자료를 준비했다고 소개하며, 오리엔테이션 동안 관련 체크리스트를 함께 완료해나갈 것을 권장합니다.
+- 총 **160시간** 과정이며, 사전에 공유된 커리큘럼은 확정본이 아니라 초안이라는 점을 분명히 합니다. 실제 진도는 수강생들의 이해 속도에 맞춰 유동적으로 조절됩니다.
+- 학습 순서는 기본 개념(터미널 사용, 파일 구조 등)을 먼저 다진 뒤, AI 기능을 점진적으로 얹어가는 방식으로 설계되어 있습니다.
+- 왕초보 수강생을 배려해 사전에 Claude Code로 직접 제작한 학습 자료를 준비했다고 소개하며, 오리엔테이션 동안 관련 체크리스트를 함께 완료해나갈 것을 권장합니다.
 """,
     },
     {
         "icon": "🛠️", "title": "필요 도구 준비", "start_seconds": 511,
         "time_label": "00:08:31",
         "summary": """
-수업에 필요한 계정과 도구를 미리 준비하도록 안내하는 구간입니다.
+수업에 필요한 계정과 도구는 다음과 같습니다. 가입 링크를 눌러 미리 준비해두세요.
 
-- **AI 서비스**: ChatGPT, Claude, Gemini는 필수로 계정을 만들어 두어야 하며, 이미 쓰고 있다면 넘어가도 됩니다. Qwen 등 중국계 AI 서비스는 개인정보가 해당국 정부 통제 하에 놓일 수 있다는 우려 때문에 필수가 아닌 **선택사항**으로 소개됩니다.
-- **개발·협업 도구**: GitHub와 Notion 계정 가입이 필수로 요구됩니다. Notion은 이번 과정에서 처음 사용해보는 수강생들도 있어, 기본 사용법까지 함께 다룰 예정이라고 안내합니다.
-- 강사는 한 가지 AI 서비스만 고집하지 말고 상황에 따라 비교해가며 사용해볼 것을 권장하며, 본인도 Claude Code와 Claude, 가끔 Gemini까지 병행해서 쓴다고 언급합니다.
-""",
-    },
-    {
-        "icon": "🙋", "title": "자기소개 & 팀 빌딩", "start_seconds": 3693,
-        "time_label": "01:01:33",
-        "summary": """
-수강생들이 관심 있는 서비스·앱 분야, 만들어보고 싶은 프로덕트, 좋아하는 음식 등을 자유로운 형식으로 자기소개하는 시간입니다.
+**필수**
+| 도구 | 용도 | 가입/설치 링크 |
+|---|---|---|
+| ChatGPT | AI 서비스 | [chat.openai.com](https://chat.openai.com) |
+| Claude | AI 서비스 | [claude.ai](https://claude.ai) |
+| Google Gemini | AI 서비스 | [gemini.google.com](https://gemini.google.com) |
+| GitHub | 코드 저장·배포 | [github.com/join](https://github.com/join) |
+| Notion | 문서·자료 정리 | [notion.so](https://www.notion.so/ko-kr) |
 
-- 이 시간의 목적은 단순 친목이 아니라, **추후 진행될 팀 프로젝트 매칭을 위한 사전 파악**입니다.
-- 강사는 처음에는 관심사가 겹치는 수강생들을 어느 정도 묶어주겠지만, 이후 팀 프로젝트에서는 누군가 아이디어를 제안하면 다른 수강생들이 지원하는 방식으로 팀이 구성된다고 설명합니다.
-- 전체 160시간 과정 동안 처음에는 각자 혼자 힘으로 프로덕트를 완성해보는 경험을 먼저 쌓고, 이후 단계에서 팀워크를 통해 사용자 테스트나 리서치처럼 혼자서는 하기 어려운 작업을 함께 해보는 흐름으로 진행됩니다.
+**선택사항**
+| 도구 | 비고 | 링크 |
+|---|---|---|
+| Qwen | 중국계 AI. 정부 통제로 인한 개인정보 이슈가 있어 신경 쓰이면 사용하지 않아도 됩니다 | [chat.qwen.ai](https://chat.qwen.ai) |
+
+강사는 한 가지 AI 서비스만 고집하지 말고 상황에 따라 비교해가며 사용해볼 것을 권장하며, 본인도 Claude Code와 Claude, 가끔 Gemini까지 병행해서 쓴다고 언급합니다.
 """,
     },
     {
         "icon": "💻", "title": "터미널 · VS Code 설치", "start_seconds": 8141,
         "time_label": "02:15:41",
         "summary": """
-개발 환경의 기초가 되는 터미널과 VS Code를 설치하는 구간입니다.
+이 구간은 영상 내용 요약이 아니라, **터미널과 VS Code를 실제로 설치하는 방법**을 별도로 정리한 안내입니다.
 
-- 터미널을 사용하는 이유와 장점(가벼움, 여러 작업을 동시에 다루기 쉬움 등)을 설명하며, 수강생들과 함께 터미널을 처음 실행해봅니다.
-- 이어서 VS Code 설치를 진행하며, 설치 과정에서 함께 따라오는 여러 확장 프로그램들에 대해서도 간단히 언급합니다.
-- 설치 중간에 막히는 수강생들이 나오자, 강사는 어려움을 겪는 경우 개인적으로 도와주겠다고 안내하며 진도를 조절합니다.
+**1) 터미널 준비**
+- **Windows**: Windows 11에는 Windows Terminal이 기본 내장되어 있습니다. Windows 10이라면 Microsoft Store에서 "Windows Terminal"을 검색해 설치하거나, PowerShell에서 아래 명령으로 설치할 수 있습니다.
+  ```powershell
+  winget install Microsoft.WindowsTerminal
+  ```
+- **Mac**: 별도 설치가 필요 없습니다. `Finder → 응용 프로그램 → 유틸리티 → 터미널`에서 바로 열 수 있습니다.
+
+**2) VS Code 설치**
+1. 공식 다운로드 페이지 접속: **[code.visualstudio.com/download](https://code.visualstudio.com/download)**
+2. 사용 중인 OS에 맞는 설치 파일 다운로드 (Windows: `.exe` / Mac: `.zip`)
+3. 설치 파일 실행 — **Windows에서는 설치 중 "PATH에 추가" 옵션을 반드시 체크**해야 터미널에서 `code` 명령으로 바로 실행할 수 있습니다.
+4. 설치 완료 후 터미널(또는 CMD)에 아래 명령을 입력해 정상 설치를 확인합니다.
+   ```bash
+   code --version
+   ```
+   버전 정보가 출력되면 설치가 완료된 것입니다.
 """,
     },
     {
@@ -151,12 +154,12 @@ Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
         "icon": "🏁", "title": "실습 결과 & 마무리", "start_seconds": 16724,
         "time_label": "04:38:44",
         "summary": """
-실습 결과를 함께 확인하고 수업을 마무리하는 구간입니다.
+이 구간은 강사가 직접 전달하는 말투 그대로 정리했습니다.
 
-- index.html이 무엇인지 몰라 결과물이 실행되지 않는 등, 기초 개념 부족으로 어려움을 겪는 수강생들을 강사가 화면 공유를 통해 개별적으로 도와줍니다.
-- 강사는 "AI에게 막연한 명령을 그대로 입력하는 것이 아니라, 원하는 결과를 구체적으로 설명할 수 있어야 방향을 잘 잡아줄 수 있다"는 **프롬프트 엔지니어링의 중요성**을 반복해서 강조합니다. 기본 지식이 없으면 AI가 일반적인 결과물만 만들어주는 데 그친다고 설명합니다.
-- 배포(Vercel 등과 연결해 지속적인 URL 만들기)는 다음 단계 과제로 남기고, 이번 시간에는 로컬 설치와 첫 실습 완료 여부를 확인하며 수업을 마무리합니다.
-- 앞으로 3개월(160시간) 동안 개인 프로젝트 → 팀 프로젝트 순으로 실전 경험을 쌓아갈 예정임을 다시 한 번 안내합니다.
+- "index.html이 뭔지 알아야 뭔가를 만들 수 있는 거잖아요. 이런 기본이 되는 걸 여러분이 조금씩 배워가는 거예요." — 아직 결과물이 안 보이는 분들은 제가 화면 공유로 하나씩 직접 봐드리면서, 왜 안 됐는지를 같이 짚어드립니다.
+- "명령을 그대로 치는 게 아니라, 내가 원하는 걸 구체적으로 설명해줘야 방향을 잡아줄 수 있어요. 그게 없으면 얘(AI)는 그냥 일반적인 걸 만들어줘요." — 이게 바로 여러분에게 프롬프트 엔지니어링 지식이 필요한 이유라고 저는 강조합니다.
+- "배포는 이번 주나 다음 주에 하는 거지, 오늘은 일단 설치하고 실습해본 것까지가 목표예요." — 오늘은 여기까지 정리하고, 앞으로 3개월(160시간) 동안 혼자 만들어보는 경험부터 시작해서 팀 프로젝트로 넓혀가겠다고 말씀드립니다.
+- "내가 만들 줄 알아야지 팀워크를 하더라도 뭔가 역할이 주어지잖아요." — 그래서 처음에는 무조건 1인으로 전부 만들어보는 시간을 갖는 거라고 다시 한번 확인시켜 드립니다.
 """,
     },
 ]
@@ -183,13 +186,31 @@ cat = CATEGORIES[st.session_state.selected_cat]
 st.markdown(f'<div class="cat-header">{cat["icon"]} {cat["title"]}</div>', unsafe_allow_html=True)
 st.markdown(f'<span class="cat-time">▶ {cat["time_label"]} 부터 자동 재생</span>', unsafe_allow_html=True)
 
-# ---- Vimeo 임베드 (선택한 구간 시작 시점부터 자동재생) ----
-# 자동재생은 브라우저 정책상 음소거(muted) 상태에서만 안정적으로 동작합니다.
-embed_url = (
-    f'https://player.vimeo.com/video/{VIMEO_VIDEO_ID}?h={VIMEO_HASH}'
-    f'&autoplay=1&muted=1#t={cat["start_seconds"]}s'
-)
-components.iframe(embed_url, height=420)
+# ---- Vimeo 임베드: Player SDK로 특정 시간부터 강제 seek + 재생 ----
+# URL 프래그먼트(#t=)만으로는 이 환경에서 안정적으로 동작하지 않아,
+# Vimeo Player JS SDK(player.setCurrentTime + player.play)로 직접 제어합니다.
+player_html = f"""
+<div style="border-radius:12px; overflow:hidden;">
+  <iframe id="vimeo_player_{st.session_state.selected_cat}"
+          src="https://player.vimeo.com/video/{VIMEO_VIDEO_ID}?h={VIMEO_HASH}&muted=1"
+          width="100%" height="420" frameborder="0"
+          allow="autoplay; fullscreen; picture-in-picture"
+          allowfullscreen></iframe>
+</div>
+<script src="https://player.vimeo.com/api/player.js"></script>
+<script>
+  (function() {{
+    var iframe = document.getElementById('vimeo_player_{st.session_state.selected_cat}');
+    var player = new Vimeo.Player(iframe);
+    player.ready().then(function() {{
+      player.setCurrentTime({cat["start_seconds"]}).then(function() {{
+        player.play();
+      }});
+    }});
+  }})();
+</script>
+"""
+components.html(player_html, height=440)
 st.caption("🔇 자동재생은 브라우저 정책상 음소거로 시작됩니다. 플레이어의 음소거 버튼을 눌러 소리를 켜주세요.")
 
 # ---- 핵심 요약 ----
