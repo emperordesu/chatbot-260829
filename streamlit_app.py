@@ -1,134 +1,165 @@
 import streamlit as st
+import streamlit.components.v1 as components
 from openai import OpenAI
-from urllib.parse import quote_plus
 
 # ---- 페이지 설정 ----
-st.set_page_config(page_title="💻 노트북 비교분석 챗봇", page_icon="💻", layout="wide")
+st.set_page_config(page_title="🎬 강의 영상 도우미", page_icon="🎬", layout="wide")
 
-# ---- 카드 스타일 CSS ----
+# ---- 테마 CSS (보라/틸 톤) ----
 st.markdown(
     """
     <style>
-    .laptop-card {
-        display: flex; gap: 16px; align-items: flex-start;
-        border: 1px solid #e5e7eb; border-radius: 14px 14px 0 0; padding: 16px;
-        margin-bottom: 0; background: #ffffff; transition: background 0.15s ease;
+    section[data-testid="stSidebar"] {
+        background: linear-gradient(180deg, #1e1b4b 0%, #312e81 100%);
     }
-    .laptop-card.selected {
-        background: #dbeafe; border-color: #3b82f6; border-width: 2px;
+    section[data-testid="stSidebar"] * { color: #ede9fe !important; }
+    section[data-testid="stSidebar"] .stButton button {
+        background: rgba(255,255,255,0.06);
+        border: 1px solid rgba(255,255,255,0.15);
+        border-radius: 10px;
+        text-align: left;
+        padding: 10px 14px;
+        margin-bottom: 6px;
+        width: 100%;
     }
-    .laptop-thumb {
-        width: 130px; flex-shrink: 0; text-align: center;
+    section[data-testid="stSidebar"] .stButton button:hover {
+        background: rgba(255,255,255,0.16);
+        border-color: #a78bfa;
     }
-    .laptop-thumb-box {
-        width: 130px; height: 90px; border-radius: 10px;
-        background: linear-gradient(135deg,#1e293b,#334155);
-        display: flex; align-items: center; justify-content: center;
-        font-size: 34px;
+    .cat-header {
+        font-size: 22px; font-weight: 800; color: #312e81;
+        margin-bottom: 4px;
     }
-    .laptop-thumb-badge {
-        margin-top: 6px; font-size: 12px; color: #334155; font-weight: 600;
-        line-height: 1.4;
+    .cat-time {
+        display: inline-block; background: #ede9fe; color: #6d28d9;
+        font-weight: 700; font-size: 13px; padding: 3px 10px;
+        border-radius: 999px; margin-bottom: 14px;
     }
-    .laptop-info { flex: 1; }
-    .laptop-tag {
-        display: inline-block; background: #eff6ff; color: #2563eb;
-        font-weight: 700; font-size: 12.5px; padding: 2px 8px;
-        border-radius: 6px; margin-bottom: 6px;
+    .summary-box {
+        background: #f5f3ff; border: 1px solid #ddd6fe; border-radius: 14px;
+        padding: 18px 20px; margin-top: 14px;
     }
-    .laptop-title { font-size: 17px; font-weight: 800; margin: 2px 0 8px 0; color: #111827; }
-    .laptop-spec { font-size: 13.5px; color: #374151; line-height: 1.9; }
-    .laptop-spec b { color: #111827; }
-    .laptop-price { font-size: 15px; font-weight: 800; color: #dc2626; margin-top: 6px; }
-    .yt-link {
-        display: inline-flex; align-items: center; gap: 6px; margin-top: 10px;
-        text-decoration: none; font-size: 13px; color: #111827;
-    }
-    .yt-thumb { width: 120px; border-radius: 8px; display: block; margin-top: 8px; }
+    .summary-box li { margin-bottom: 8px; line-height: 1.6; }
     </style>
     """,
     unsafe_allow_html=True,
 )
 
-# ---- 노트북 데이터베이스 ----
-# 2025년 판매 기준 / CPU 조건: 인텔 코어 울트라5 이상(2023년~) 또는 AMD 라이젠AI 5 이상(2024년~), 애플 M4(맥 OS 옵션용) 포함
-# 참고: 실제 가격/사양은 프로모션 등으로 자주 바뀌므로, 운영 환경에서는 가격비교 API 등으로 주기적 갱신을 권장합니다.
-LAPTOP_DB = [
-    {"brand": "삼성", "model": "갤럭시북5 프로 14", "screen": 14, "screen_label": "35.6cm(14인치)",
-     "cpu_tier": "울트라5", "cpu_detail": "인텔 코어 울트라5(2세대) 226V",
-     "ram": [16], "storage": [256], "os": "Windows 11 Home",
-     "weight": 1.23, "price": 1799000, "video": "KX6cL4GoiBQ"},
-    {"brand": "삼성", "model": "갤럭시북5 프로 16 (울트라5)", "screen": 16, "screen_label": "40.6cm(16인치)",
-     "cpu_tier": "울트라5", "cpu_detail": "인텔 코어 울트라5(2세대) 226V",
-     "ram": [16], "storage": [256], "os": "Windows 11 Home",
-     "weight": 1.56, "price": 2099000, "video": "M-yOvBXNweE"},
-    {"brand": "삼성", "model": "갤럭시북5 프로 16 (울트라7)", "screen": 16, "screen_label": "40.6cm(16인치)",
-     "cpu_tier": "울트라7", "cpu_detail": "인텔 코어 울트라7(2세대) 258V",
-     "ram": [16, 32], "storage": [512, 1024], "os": "Windows 11 Home",
-     "weight": 1.56, "price": 2808000, "video": "M-yOvBXNweE"},
-    {"brand": "삼성", "model": "갤럭시북5 프로360 16", "screen": 16, "screen_label": "40.6cm(16인치)",
-     "cpu_tier": "울트라7", "cpu_detail": "인텔 코어 울트라7(2세대) 258V",
-     "ram": [16, 32], "storage": [512, 1024], "os": "Windows 11 Home",
-     "weight": 1.66, "price": 2926000, "video": "Y2Pn8rRZ92s"},
-    {"brand": "LG", "model": "그램 프로16 (울트라5)", "screen": 16, "screen_label": "40.6cm(16인치)",
-     "cpu_tier": "울트라5", "cpu_detail": "인텔 코어 울트라5(2세대) 225H",
-     "ram": [16], "storage": [256], "os": "Windows 11 Home",
-     "weight": 1.199, "price": 1799000, "video": "HUc5kJdy5PE"},
-    {"brand": "LG", "model": "그램 프로16 (울트라7)", "screen": 16, "screen_label": "40.6cm(16인치)",
-     "cpu_tier": "울트라7", "cpu_detail": "인텔 코어 울트라7(2세대) 255H",
-     "ram": [32], "storage": [1024], "os": "Windows 11 Home",
-     "weight": 1.199, "price": 2450000, "video": "HUc5kJdy5PE"},
-    {"brand": "LG", "model": "그램 프로360 16", "screen": 16, "screen_label": "40.6cm(16인치)",
-     "cpu_tier": "울트라7", "cpu_detail": "인텔 코어 울트라7(2세대) 255H",
-     "ram": [32], "storage": [512, 1024], "os": "Windows 11 Home",
-     "weight": 1.399, "price": 2700000, "video": "HUc5kJdy5PE"},
-    {"brand": "LG", "model": "그램북 AI 16", "screen": 16, "screen_label": "40.6cm(16인치)",
-     "cpu_tier": "라이젠AI5", "cpu_detail": "AMD 라이젠 AI5 435",
-     "ram": [16], "storage": [512], "os": "Windows 11 Home",
-     "weight": 1.199, "price": 1300000, "video": "HUc5kJdy5PE"},
-    {"brand": "LG", "model": "그램 프로17", "screen": 17, "screen_label": "43.1cm(17인치)",
-     "cpu_tier": "울트라5", "cpu_detail": "인텔 코어 울트라5(2세대) 225H",
-     "ram": [16], "storage": [256], "os": "OS 미포함(프리도스)",
-     "weight": 1.369, "price": 1998890, "video": "HUc5kJdy5PE"},
-    {"brand": "LG", "model": "울트라PC 17", "screen": 17, "screen_label": "43.1cm(17인치)",
-     "cpu_tier": "울트라5", "cpu_detail": "인텔 코어 울트라5(1세대) 125H",
-     "ram": [8], "storage": [256], "os": "OS 미포함(프리도스)",
-     "weight": 1.39, "price": 2210000, "video": None},
-    {"brand": "에이서", "model": "Swift 16 AI", "screen": 16, "screen_label": "40.6cm(16인치)",
-     "cpu_tier": "울트라7", "cpu_detail": "인텔 코어 울트라7(2세대) 258V",
-     "ram": [32], "storage": [512], "os": "Windows 11 Home",
-     "weight": 1.46, "price": 1999000, "video": "YSu4MHhK0ks"},
-    {"brand": "에이서", "model": "Swift Edge 14 AI", "screen": 14, "screen_label": "35.6cm(14인치)",
-     "cpu_tier": "울트라7", "cpu_detail": "인텔 코어 울트라7(2세대) 258V",
-     "ram": [32], "storage": [1024], "os": "Windows 11 Home",
-     "weight": 0.99, "price": 2190000, "video": None},
-    {"brand": "에이서", "model": "Swift Go 14 AI", "screen": 14, "screen_label": "35.6cm(14인치)",
-     "cpu_tier": "울트라5", "cpu_detail": "인텔 코어 울트라5(1세대)",
-     "ram": [16], "storage": [512], "os": "Windows 11 Home",
-     "weight": 1.32, "price": 969000, "video": None},
-    {"brand": "MSI", "model": "모던 A15 AI+ (F3HMG)", "screen": 15, "screen_label": "39.6cm(15.6인치)",
-     "cpu_tier": "라이젠AI5", "cpu_detail": "AMD 라이젠 AI5 330",
-     "ram": [16], "storage": [512], "os": "OS 미포함(프리도스)",
-     "weight": 1.6, "price": 1197470, "video": None},
-    {"brand": "애플", "model": "맥북 에어 13 (M4)", "screen": 14, "screen_label": "13.6인치",
-     "cpu_tier": "Apple M4", "cpu_detail": "애플 M4 (8코어 CPU)",
-     "ram": [16, 24, 32], "storage": [256, 512, 1024, 2048], "os": "macOS",
-     "weight": 1.24, "price": 1690000, "video": "532mVCw4MWQ"},
-    {"brand": "애플", "model": "맥북 에어 15 (M4)", "screen": 15, "screen_label": "15.3인치",
-     "cpu_tier": "Apple M4", "cpu_detail": "애플 M4 (10코어 CPU)",
-     "ram": [16, 24, 32], "storage": [256, 512, 1024, 2048], "os": "macOS",
-     "weight": 1.51, "price": 1990000, "video": "joQ9YhR46uY"},
+# ---- Vimeo 영상 정보 ----
+VIMEO_VIDEO_ID = "1221651006"
+VIMEO_HASH = "ecf1d87214"
+
+# ---- 카테고리 데이터 (영상 흐름 순서대로) ----
+# start_seconds: 해당 구간이 시작되는 영상 내 시점
+CATEGORIES = [
+    {
+        "icon": "🗂️", "title": "수업 운영 안내", "start_seconds": 0,
+        "time_label": "00:00:00",
+        "summary": [
+            "Discord를 수업 소통 채널로 사용하며, 시작 전 화면과 음성이 잘 전달되는지부터 확인",
+            "이해도 체크 방식 안내: 잘 이해됐으면 O, 애매하면 물음표, 잘 모르겠으면 X로 표시하도록 요청",
+            "아직 Discord에 가입하지 않은 수강생이 많아, 1교시 안에 가입과 체크를 완료해달라고 당부",
+        ],
+    },
+    {
+        "icon": "📚", "title": "커리큘럼 소개", "start_seconds": 309,
+        "time_label": "00:05:09",
+        "summary": [
+            "총 160시간 과정이며, 사전에 안내한 커리큘럼은 초안이라 진도에 따라 유동적으로 조정될 예정",
+            "기본 개념부터 시작해 점차 AI 기능을 추가해나가는 방식으로 난이도를 확장",
+            "왕초보 수강생을 위해 미리 준비한 사전학습 자료(Claude Code로 제작)를 소개",
+        ],
+    },
+    {
+        "icon": "🛠️", "title": "필요 도구 준비", "start_seconds": 511,
+        "time_label": "00:08:31",
+        "summary": [
+            "ChatGPT, Claude, Gemini 계정은 필수, 중국계 AI 서비스는 정보보안 이슈로 선택사항으로 안내",
+            "GitHub와 Notion 계정 가입을 필수로 안내 (Notion을 이번에 처음 써보는 수강생도 다수)",
+            "여러 AI 서비스를 비교해서 써보며 본인에게 맞는 도구를 찾아볼 것을 권장",
+        ],
+    },
+    {
+        "icon": "🙋", "title": "자기소개 & 팀 빌딩", "start_seconds": 3693,
+        "time_label": "01:01:33",
+        "summary": [
+            "수강생들이 관심 분야, 만들고 싶은 앱, 좋아하는 음식 등을 자유롭게 자기소개",
+            "목적은 이후 팀 프로젝트 매칭 — 관심사가 비슷한 사람끼리 팀을 구성하기 위함",
+            "처음에는 혼자 힘으로 만들어보는 경험을 먼저 쌓은 뒤, 이후 팀 프로젝트로 확장할 예정",
+        ],
+    },
+    {
+        "icon": "💻", "title": "터미널 · VS Code 설치", "start_seconds": 8141,
+        "time_label": "02:15:41",
+        "summary": [
+            "터미널을 사용하는 이유와 장점을 설명하고, 첫 실행까지 함께 진행",
+            "VS Code 설치와 관련 확장 프로그램 설치 방법 안내",
+            "설치가 어려운 수강생은 별도로 개별 지원하겠다고 안내",
+        ],
+    },
+    {
+        "icon": "🤖", "title": "Claude Code 설치 & 실습", "start_seconds": 10709,
+        "time_label": "02:58:29",
+        "summary": [
+            "Node.js와 Claude Code를 함께 설치 (최근에는 Claude Code 단독 설치도 가능해졌다고 언급)",
+            "Windows와 Mac 환경을 번갈아 시연하며 CLI, Desktop, 웹 등 다양한 실행 방식을 소개",
+            "실습으로 간단한 웹페이지(예: 벽돌깨기 게임)를 직접 만들어보는 시간을 진행",
+        ],
+    },
+    {
+        "icon": "🏁", "title": "실습 결과 & 마무리", "start_seconds": 16724,
+        "time_label": "04:38:44",
+        "summary": [
+            "index.html 등 기본 개념을 몰라 실행에 어려움을 겪는 수강생들을 개별적으로 지원",
+            "\"명령을 그대로 치는 게 아니라 원하는 결과를 구체적으로 설명하는\" 프롬프트 엔지니어링의 중요성을 강조",
+            "배포(Vercel 연결 등)는 다음 단계 과제로 남기고 수업을 마무리하며, 앞으로 3개월간 팀워크·실전 프로젝트를 이어갈 예정임을 안내",
+        ],
+    },
 ]
 
-# ---- 제목 및 설명 ----
-st.title("💻 노트북 비교분석 챗봇")
-st.write(
-    "왼쪽에서 원하는 사양 조건을 선택하고 **검색 버튼**을 누르면 조건에 맞는 2025년 판매 노트북이 카드로 나타납니다. "
-    "카드를 클릭해 2개를 선택하면 자동으로 비교분석을 시작해요. "
-    "사용하려면 OpenAI API 키가 필요합니다. [여기서 발급받으세요](https://platform.openai.com/account/api-keys)."
+# ---- 세션 상태 초기화 ----
+if "selected_cat" not in st.session_state:
+    st.session_state.selected_cat = 0
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+
+# ================= 사이드바: 카테고리 목록 =================
+with st.sidebar:
+    st.markdown("## 🎬 강의 목차")
+    st.caption("260826_2기 인공지능 특급")
+    st.write("")
+    for i, cat in enumerate(CATEGORIES):
+        label = f'{cat["icon"]}  {cat["title"]}  ·  {cat["time_label"]}'
+        if st.button(label, key=f"cat_{i}", use_container_width=True):
+            st.session_state.selected_cat = i
+
+# ================= 메인 화면 =================
+cat = CATEGORIES[st.session_state.selected_cat]
+
+st.markdown(f'<div class="cat-header">{cat["icon"]} {cat["title"]}</div>', unsafe_allow_html=True)
+st.markdown(f'<span class="cat-time">▶ {cat["time_label"]} 부터 재생</span>', unsafe_allow_html=True)
+
+# ---- Vimeo 임베드 (선택한 구간 시작 시점부터) ----
+embed_url = f'https://player.vimeo.com/video/{VIMEO_VIDEO_ID}?h={VIMEO_HASH}#t={cat["start_seconds"]}s'
+components.iframe(embed_url, height=420)
+
+# ---- 핵심 요약 ----
+summary_items = "".join(f"<li>{s}</li>" for s in cat["summary"])
+st.markdown(
+    f"""
+    <div class="summary-box">
+        <b>📝 이 구간 핵심 요약</b>
+        <ul>{summary_items}</ul>
+    </div>
+    """,
+    unsafe_allow_html=True,
 )
 
-# ---- API 키 처리 ----
+st.divider()
+
+# ================= 강의 내용 Q&A 챗봇 (스트리밍) =================
+st.subheader("💬 강의 내용 물어보기")
+
 openai_api_key = st.secrets.get("OPENAI_API_KEY", None)
 if not openai_api_key:
     openai_api_key = st.text_input(
@@ -137,173 +168,30 @@ if not openai_api_key:
     )
 
 if not openai_api_key:
-    st.info("계속하려면 OpenAI API 키를 입력해주세요.", icon="🗝️")
+    st.info("강의 내용에 대해 질문하려면 OpenAI API 키를 입력해주세요.", icon="🗝️")
 else:
     client = OpenAI(api_key=openai_api_key)
 
-    SYSTEM_PROMPT = """당신은 노트북 구매를 도와주는 전문 컨설턴트입니다.
-사용자가 제공하는 두 노트북의 사양 데이터를 바탕으로 마크다운 표를 이용해 비교분석해주세요.
-표에는 최소한 화면크기, CPU, RAM, 저장공간, 운영체제, 무게, 가격 항목을 포함하고,
-표 아래에는 다음 내용을 정리해주세요:
-1. 두 노트북의 핵심 차이점
-2. 각 노트북의 장단점
-3. 어떤 사용자에게 어떤 모델이 더 적합한지 추천
-정보가 주어지지 않은 부분은 추측하지 말고 "제공된 정보 없음"이라고 표시하세요."""
+    all_summary_text = "\n\n".join(
+        f'[{c["time_label"]} {c["title"]}]\n' + "\n".join(f"- {s}" for s in c["summary"])
+        for c in CATEGORIES
+    )
+    SYSTEM_PROMPT = (
+        "당신은 '260826_2기 인공지능 특급' 강의 영상 내용에 대해 답변하는 도우미입니다. "
+        "아래는 강의를 구간별로 정리한 요약입니다. 이 정보를 바탕으로 사용자의 질문에 답하세요. "
+        "요약에 없는 세부 내용은 추측하지 말고 모른다고 답하세요.\n\n"
+        f"{all_summary_text}"
+    )
 
-    # ================= 사이드바: 사양 조건 필터 (폼으로 묶어서 검색 버튼 클릭 시에만 반영) =================
-    with st.sidebar:
-        st.header("🔍 사양 조건으로 찾기")
-
-        with st.form("filter_form"):
-            sel_screen = st.multiselect("화면크기대 (인치)", [14, 15, 16, 17], placeholder="전체")
-            sel_cpu = st.multiselect(
-                "CPU (인텔 코어 울트라5 이상 / AMD 라이젠AI5 이상 / Apple M4)",
-                ["울트라5", "울트라7", "라이젠AI5", "Apple M4"], placeholder="전체",
-            )
-            sel_ram = st.multiselect("램 용량 (GB)", [8, 16, 32], placeholder="전체")
-            sel_storage = st.multiselect("저장 용량대 (GB)", [256, 512, 1024, 2048], placeholder="전체")
-            sel_os = st.multiselect(
-                "운영체제", ["Windows 11 Home", "OS 미포함(프리도스)", "macOS"], placeholder="전체",
-            )
-            sel_weight = st.slider("무게 (kg)", 0.9, 2.0, (0.9, 2.0), step=0.01)
-            sel_price = st.slider("가격 (원)", 900000, 3000000, (900000, 3000000), step=50000)
-
-            submitted = st.form_submit_button("🔍 검색", use_container_width=True, type="primary")
-
-        st.divider()
-        if st.button("🗑️ 대화 초기화", use_container_width=True):
-            st.session_state.messages = []
-            st.session_state.selected = []
-            st.session_state.last_compared = None
-            st.rerun()
-
-    # ---- 세션 상태 초기화 ----
-    if "messages" not in st.session_state:
-        st.session_state.messages = []
-    if "filtered" not in st.session_state:
-        st.session_state.filtered = None  # 검색 전에는 결과 없음
-    if "selected" not in st.session_state:
-        st.session_state.selected = []  # 카드 클릭으로 선택된 노트북 키 (최대 2개)
-    if "last_compared" not in st.session_state:
-        st.session_state.last_compared = None  # 중복 비교 요청 방지용
-
-    # ---- 검색 버튼 클릭 시에만 필터링 실행 ----
-    if submitted:
-        def matches(item):
-            if sel_screen and item["screen"] not in sel_screen:
-                return False
-            if sel_cpu and item["cpu_tier"] not in sel_cpu:
-                return False
-            if sel_ram and not set(item["ram"]) & set(sel_ram):
-                return False
-            if sel_storage and not set(item["storage"]) & set(sel_storage):
-                return False
-            if sel_os and item["os"] not in sel_os:
-                return False
-            if not (sel_weight[0] <= item["weight"] <= sel_weight[1]):
-                return False
-            if not (sel_price[0] <= item["price"] <= sel_price[1]):
-                return False
-            return True
-
-        st.session_state.filtered = [item for item in LAPTOP_DB if matches(item)]
-
-    filtered = st.session_state.filtered
-
-    # ================= 메인 화면: 조건에 맞는 노트북 카드 목록 =================
-    if filtered is None:
-        st.info("👈 왼쪽에서 조건을 선택하고 **검색** 버튼을 눌러주세요.")
-    elif not filtered:
-        st.warning("조건에 맞는 노트북이 없습니다. 필터 조건을 완화해보세요.")
-    else:
-        st.subheader(f"📋 조건에 맞는 노트북 ({len(filtered)}개)")
-        st.caption("카드를 클릭해서 선택하세요 (선택하면 파란색으로 표시됩니다). 2개를 선택하면 자동으로 비교분석을 시작해요.")
-
-        for idx, it in enumerate(filtered):
-            key = f'{it["brand"]} {it["model"]}'
-            ram_txt = " / ".join(f"{r}GB" for r in it["ram"])
-            storage_txt = " / ".join(f"{s}GB" for s in it["storage"])
-            is_selected = key in st.session_state.selected
-
-            video_html = ""
-            if it["video"]:
-                thumb_url = f'https://img.youtube.com/vi/{it["video"]}/mqdefault.jpg'
-                watch_url = f'https://www.youtube.com/watch?v={it["video"]}'
-                video_html = (
-                    f'<a class="yt-link" href="{watch_url}" target="_blank">'
-                    f'<img class="yt-thumb" src="{thumb_url}"/></a>'
-                    f'<div><a class="yt-link" href="{watch_url}" target="_blank">▶ 리뷰 영상 보기 (YouTube)</a></div>'
-                )
-            else:
-                query = quote_plus(f'{it["brand"]} {it["model"]} 리뷰')
-                search_url = f'https://www.youtube.com/results?search_query={query}'
-                video_html = f'<a class="yt-link" href="{search_url}" target="_blank">🔎 YouTube에서 리뷰 검색</a>'
-
-            card_class = "laptop-card selected" if is_selected else "laptop-card"
-            card_html = f"""
-            <div class="{card_class}">
-                <div class="laptop-thumb">
-                    <div class="laptop-thumb-box">💻</div>
-                    <div class="laptop-thumb-badge">{it["screen_label"]}<br/>{it["weight"]}kg</div>
-                </div>
-                <div class="laptop-info">
-                    <span class="laptop-tag">{it["brand"]} · {it["cpu_detail"]}</span>
-                    <div class="laptop-title">{it["model"]}</div>
-                    <div class="laptop-spec">
-                        <b>[화면]</b> {it["screen_label"]} &nbsp;/&nbsp;
-                        <b>[CPU]</b> {it["cpu_detail"]}<br/>
-                        <b>[구성]</b> RAM {ram_txt} / 저장공간 {storage_txt} &nbsp;/&nbsp; {it["os"]}<br/>
-                        <b>[무게]</b> {it["weight"]}kg
-                    </div>
-                    <div class="laptop-price">{it["price"]:,}원~</div>
-                    {video_html}
-                </div>
-            </div>
-            """
-            st.markdown(card_html, unsafe_allow_html=True)
-
-            # 카드 바로 아래 선택 토글 버튼 (클릭 시 카드가 파란 배경으로 바뀜)
-            btn_disabled = (not is_selected) and len(st.session_state.selected) >= 2
-            btn_label = "✅ 선택됨 (클릭해서 해제)" if is_selected else "☐ 이 노트북 선택하기"
-            btn_type = "primary" if is_selected else "secondary"
-            if st.button(btn_label, key=f"sel_{idx}", use_container_width=True,
-                         type=btn_type, disabled=btn_disabled):
-                if is_selected:
-                    st.session_state.selected.remove(key)
-                else:
-                    st.session_state.selected.append(key)
-                st.rerun()
-
-        # ---- 2개가 선택되면 자동으로 비교분석 프롬프트 생성 (같은 조합 중복 요청 방지) ----
-        if len(st.session_state.selected) == 2:
-            pair = tuple(sorted(st.session_state.selected))
-            if st.session_state.last_compared != pair:
-                selected_items = [it for it in filtered if f'{it["brand"]} {it["model"]}' in st.session_state.selected]
-                spec_lines = []
-                for it in selected_items:
-                    spec_lines.append(
-                        f'- {it["brand"]} {it["model"]}: 화면 {it["screen_label"]}, CPU {it["cpu_detail"]}, '
-                        f'RAM {"/".join(f"{r}GB" for r in it["ram"])}, 저장공간 {"/".join(f"{s}GB" for s in it["storage"])}, '
-                        f'{it["os"]}, 무게 {it["weight"]}kg, 가격 {it["price"]:,}원'
-                    )
-                auto_prompt = "다음 두 노트북을 비교분석해줘.\n" + "\n".join(spec_lines)
-                st.session_state.messages.append({"role": "user", "content": auto_prompt})
-                st.session_state.last_compared = pair
-
-        if st.session_state.selected:
-            if st.button("🔄 선택 초기화", use_container_width=False):
-                st.session_state.selected = []
-                st.session_state.last_compared = None
-                st.rerun()
-
-    # ---- 대화 표시 ----
-    st.divider()
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
-    # ---- 응답 생성 함수 ----
-    def generate_response():
+    if prompt := st.chat_input("예: Claude Code 설치는 어떻게 진행됐나요?"):
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        with st.chat_message("user"):
+            st.markdown(prompt)
+
         api_messages = [{"role": "system", "content": SYSTEM_PROMPT}] + [
             {"role": m["role"], "content": m["content"]} for m in st.session_state.messages
         ]
@@ -313,16 +201,3 @@ else:
         with st.chat_message("assistant"):
             response = st.write_stream(stream)
         st.session_state.messages.append({"role": "assistant", "content": response})
-
-    if (
-        st.session_state.messages
-        and st.session_state.messages[-1]["role"] == "user"
-    ):
-        generate_response()
-
-    # ---- 채팅 입력창 (자유 질문도 가능) ----
-    if prompt := st.chat_input("노트북 관련 질문을 자유롭게 입력하세요"):
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user"):
-            st.markdown(prompt)
-        generate_response()
