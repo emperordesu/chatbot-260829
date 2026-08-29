@@ -11,8 +11,11 @@ st.markdown(
     <style>
     .laptop-card {
         display: flex; gap: 16px; align-items: flex-start;
-        border: 1px solid #e5e7eb; border-radius: 14px; padding: 16px;
-        margin-bottom: 14px; background: #ffffff;
+        border: 1px solid #e5e7eb; border-radius: 14px 14px 0 0; padding: 16px;
+        margin-bottom: 0; background: #ffffff; transition: background 0.15s ease;
+    }
+    .laptop-card.selected {
+        background: #dbeafe; border-color: #3b82f6; border-width: 2px;
     }
     .laptop-thumb {
         width: 130px; flex-shrink: 0; text-align: center;
@@ -121,7 +124,7 @@ LAPTOP_DB = [
 st.title("💻 노트북 비교분석 챗봇")
 st.write(
     "왼쪽에서 원하는 사양 조건을 선택하고 **검색 버튼**을 누르면 조건에 맞는 2025년 판매 노트북이 카드로 나타납니다. "
-    "그중 2개를 골라 비교분석을 요청해보세요. "
+    "카드를 클릭해 2개를 선택하면 자동으로 비교분석을 시작해요. "
     "사용하려면 OpenAI API 키가 필요합니다. [여기서 발급받으세요](https://platform.openai.com/account/api-keys)."
 )
 
@@ -170,6 +173,8 @@ else:
         st.divider()
         if st.button("🗑️ 대화 초기화", use_container_width=True):
             st.session_state.messages = []
+            st.session_state.selected = []
+            st.session_state.last_compared = None
             st.rerun()
 
     # ---- 세션 상태 초기화 ----
@@ -177,6 +182,10 @@ else:
         st.session_state.messages = []
     if "filtered" not in st.session_state:
         st.session_state.filtered = None  # 검색 전에는 결과 없음
+    if "selected" not in st.session_state:
+        st.session_state.selected = []  # 카드 클릭으로 선택된 노트북 키 (최대 2개)
+    if "last_compared" not in st.session_state:
+        st.session_state.last_compared = None  # 중복 비교 요청 방지용
 
     # ---- 검색 버튼 클릭 시에만 필터링 실행 ----
     if submitted:
@@ -208,10 +217,13 @@ else:
         st.warning("조건에 맞는 노트북이 없습니다. 필터 조건을 완화해보세요.")
     else:
         st.subheader(f"📋 조건에 맞는 노트북 ({len(filtered)}개)")
+        st.caption("카드를 클릭해서 선택하세요 (선택하면 파란색으로 표시됩니다). 2개를 선택하면 자동으로 비교분석을 시작해요.")
 
         for idx, it in enumerate(filtered):
+            key = f'{it["brand"]} {it["model"]}'
             ram_txt = " / ".join(f"{r}GB" for r in it["ram"])
             storage_txt = " / ".join(f"{s}GB" for s in it["storage"])
+            is_selected = key in st.session_state.selected
 
             video_html = ""
             if it["video"]:
@@ -227,8 +239,9 @@ else:
                 search_url = f'https://www.youtube.com/results?search_query={query}'
                 video_html = f'<a class="yt-link" href="{search_url}" target="_blank">🔎 YouTube에서 리뷰 검색</a>'
 
+            card_class = "laptop-card selected" if is_selected else "laptop-card"
             card_html = f"""
-            <div class="laptop-card">
+            <div class="{card_class}">
                 <div class="laptop-thumb">
                     <div class="laptop-thumb-box">💻</div>
                     <div class="laptop-thumb-badge">{it["screen_label"]}<br/>{it["weight"]}kg</div>
@@ -249,26 +262,39 @@ else:
             """
             st.markdown(card_html, unsafe_allow_html=True)
 
-        options = [f'{it["brand"]} {it["model"]}' for it in filtered]
-        picked = st.multiselect(
-            "🆚 비교할 노트북을 정확히 2개 선택하세요", options=options, max_selections=2,
-        )
-        compare_clicked = st.button(
-            "📊 선택한 2개 비교분석 요청", type="primary", disabled=len(picked) != 2,
-        )
+            # 카드 바로 아래 선택 토글 버튼 (클릭 시 카드가 파란 배경으로 바뀜)
+            btn_disabled = (not is_selected) and len(st.session_state.selected) >= 2
+            btn_label = "✅ 선택됨 (클릭해서 해제)" if is_selected else "☐ 이 노트북 선택하기"
+            btn_type = "primary" if is_selected else "secondary"
+            if st.button(btn_label, key=f"sel_{idx}", use_container_width=True,
+                         type=btn_type, disabled=btn_disabled):
+                if is_selected:
+                    st.session_state.selected.remove(key)
+                else:
+                    st.session_state.selected.append(key)
+                st.rerun()
 
-        # ---- 비교 요청 시 자동 프롬프트 생성 ----
-        if compare_clicked and len(picked) == 2:
-            selected_items = [it for it in filtered if f'{it["brand"]} {it["model"]}' in picked]
-            spec_lines = []
-            for it in selected_items:
-                spec_lines.append(
-                    f'- {it["brand"]} {it["model"]}: 화면 {it["screen_label"]}, CPU {it["cpu_detail"]}, '
-                    f'RAM {"/".join(f"{r}GB" for r in it["ram"])}, 저장공간 {"/".join(f"{s}GB" for s in it["storage"])}, '
-                    f'{it["os"]}, 무게 {it["weight"]}kg, 가격 {it["price"]:,}원'
-                )
-            auto_prompt = "다음 두 노트북을 비교분석해줘.\n" + "\n".join(spec_lines)
-            st.session_state.messages.append({"role": "user", "content": auto_prompt})
+        # ---- 2개가 선택되면 자동으로 비교분석 프롬프트 생성 (같은 조합 중복 요청 방지) ----
+        if len(st.session_state.selected) == 2:
+            pair = tuple(sorted(st.session_state.selected))
+            if st.session_state.last_compared != pair:
+                selected_items = [it for it in filtered if f'{it["brand"]} {it["model"]}' in st.session_state.selected]
+                spec_lines = []
+                for it in selected_items:
+                    spec_lines.append(
+                        f'- {it["brand"]} {it["model"]}: 화면 {it["screen_label"]}, CPU {it["cpu_detail"]}, '
+                        f'RAM {"/".join(f"{r}GB" for r in it["ram"])}, 저장공간 {"/".join(f"{s}GB" for s in it["storage"])}, '
+                        f'{it["os"]}, 무게 {it["weight"]}kg, 가격 {it["price"]:,}원'
+                    )
+                auto_prompt = "다음 두 노트북을 비교분석해줘.\n" + "\n".join(spec_lines)
+                st.session_state.messages.append({"role": "user", "content": auto_prompt})
+                st.session_state.last_compared = pair
+
+        if st.session_state.selected:
+            if st.button("🔄 선택 초기화", use_container_width=False):
+                st.session_state.selected = []
+                st.session_state.last_compared = None
+                st.rerun()
 
     # ---- 대화 표시 ----
     st.divider()
