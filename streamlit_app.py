@@ -1,92 +1,126 @@
 import streamlit as st
 from openai import OpenAI
+from urllib.parse import quote_plus
 
 # ---- 페이지 설정 ----
 st.set_page_config(page_title="💻 노트북 비교분석 챗봇", page_icon="💻", layout="wide")
 
+# ---- 카드 스타일 CSS ----
+st.markdown(
+    """
+    <style>
+    .laptop-card {
+        display: flex; gap: 16px; align-items: flex-start;
+        border: 1px solid #e5e7eb; border-radius: 14px; padding: 16px;
+        margin-bottom: 14px; background: #ffffff;
+    }
+    .laptop-thumb {
+        width: 130px; flex-shrink: 0; text-align: center;
+    }
+    .laptop-thumb-box {
+        width: 130px; height: 90px; border-radius: 10px;
+        background: linear-gradient(135deg,#1e293b,#334155);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 34px;
+    }
+    .laptop-thumb-badge {
+        margin-top: 6px; font-size: 12px; color: #334155; font-weight: 600;
+        line-height: 1.4;
+    }
+    .laptop-info { flex: 1; }
+    .laptop-tag {
+        display: inline-block; background: #eff6ff; color: #2563eb;
+        font-weight: 700; font-size: 12.5px; padding: 2px 8px;
+        border-radius: 6px; margin-bottom: 6px;
+    }
+    .laptop-title { font-size: 17px; font-weight: 800; margin: 2px 0 8px 0; color: #111827; }
+    .laptop-spec { font-size: 13.5px; color: #374151; line-height: 1.9; }
+    .laptop-spec b { color: #111827; }
+    .laptop-price { font-size: 15px; font-weight: 800; color: #dc2626; margin-top: 6px; }
+    .yt-link {
+        display: inline-flex; align-items: center; gap: 6px; margin-top: 10px;
+        text-decoration: none; font-size: 13px; color: #111827;
+    }
+    .yt-thumb { width: 120px; border-radius: 8px; display: block; margin-top: 8px; }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
 # ---- 노트북 데이터베이스 ----
-# 2025년 판매 기준 / CPU 조건: 인텔 코어 울트라5 이상(2023년 출시 시리즈1~) 또는 AMD 라이젠AI 5 이상(2024년 출시~)
-# 참고: 실제 가격/사양은 프로모션, 메모리 가격 변동 등에 따라 수시로 바뀌므로
-#       운영 환경에서는 이 표를 브랜드 공식 사이트나 가격비교 API로 주기적으로 갱신하는 것을 권장합니다.
+# 2025년 판매 기준 / CPU 조건: 인텔 코어 울트라5 이상(2023년~) 또는 AMD 라이젠AI 5 이상(2024년~), 애플 M4(맥 OS 옵션용) 포함
+# 참고: 실제 가격/사양은 프로모션 등으로 자주 바뀌므로, 운영 환경에서는 가격비교 API 등으로 주기적 갱신을 권장합니다.
 LAPTOP_DB = [
-    {
-        "brand": "삼성", "model": "갤럭시북5 프로 14",
-        "screen": 14, "cpu_tier": "울트라5", "cpu_detail": "인텔 코어 울트라5(시리즈2) 226V",
-        "ram": [16], "storage": [256], "os": "Windows 11 Home",
-        "weight": 1.23, "price": 1799000,
-    },
-    {
-        "brand": "삼성", "model": "갤럭시북5 프로 16 (울트라5)",
-        "screen": 16, "cpu_tier": "울트라5", "cpu_detail": "인텔 코어 울트라5(시리즈2) 226V",
-        "ram": [16], "storage": [256], "os": "Windows 11 Home",
-        "weight": 1.56, "price": 2099000,
-    },
-    {
-        "brand": "삼성", "model": "갤럭시북5 프로 16 (울트라7)",
-        "screen": 16, "cpu_tier": "울트라7", "cpu_detail": "인텔 코어 울트라7(시리즈2) 258V",
-        "ram": [16, 32], "storage": [512, 1024], "os": "Windows 11 Home",
-        "weight": 1.56, "price": 2808000,
-    },
-    {
-        "brand": "삼성", "model": "갤럭시북5 프로 360 16",
-        "screen": 16, "cpu_tier": "울트라7", "cpu_detail": "인텔 코어 울트라7(시리즈2) 258V",
-        "ram": [16, 32], "storage": [512, 1024], "os": "Windows 11 Home",
-        "weight": 1.66, "price": 2926000,
-    },
-    {
-        "brand": "LG", "model": "그램 프로16 (울트라5)",
-        "screen": 16, "cpu_tier": "울트라5", "cpu_detail": "인텔 코어 울트라5(시리즈2) 225H",
-        "ram": [16], "storage": [256], "os": "Windows 11 Home",
-        "weight": 1.199, "price": 1990000,
-    },
-    {
-        "brand": "LG", "model": "그램 프로16 (울트라7)",
-        "screen": 16, "cpu_tier": "울트라7", "cpu_detail": "인텔 코어 울트라7(시리즈2) 255H",
-        "ram": [32], "storage": [1024], "os": "Windows 11 Home",
-        "weight": 1.199, "price": 2450000,
-    },
-    {
-        "brand": "LG", "model": "그램 프로360 16",
-        "screen": 16, "cpu_tier": "울트라7", "cpu_detail": "인텔 코어 울트라7(시리즈2) 255H",
-        "ram": [32], "storage": [512, 1024], "os": "Windows 11 Home",
-        "weight": 1.399, "price": 2700000,
-    },
-    {
-        "brand": "LG", "model": "그램북 AI 16",
-        "screen": 16, "cpu_tier": "라이젠AI5", "cpu_detail": "AMD 라이젠 AI5 435",
-        "ram": [16], "storage": [512], "os": "Windows 11 Home",
-        "weight": 1.199, "price": 1300000,
-    },
-    {
-        "brand": "에이서", "model": "Swift 16 AI",
-        "screen": 16, "cpu_tier": "울트라7", "cpu_detail": "인텔 코어 울트라7(시리즈2) 258V",
-        "ram": [32], "storage": [512], "os": "Windows 11 Home",
-        "weight": 1.46, "price": 1999000,
-    },
-    {
-        "brand": "에이서", "model": "Swift Edge 14 AI",
-        "screen": 14, "cpu_tier": "울트라7", "cpu_detail": "인텔 코어 울트라7(시리즈2) 258V",
-        "ram": [32], "storage": [1024], "os": "Windows 11 Home",
-        "weight": 0.99, "price": 2190000,
-    },
-    {
-        "brand": "에이서", "model": "Swift Go 14 AI",
-        "screen": 14, "cpu_tier": "울트라5", "cpu_detail": "인텔 코어 울트라5(시리즈1)",
-        "ram": [16], "storage": [512], "os": "Windows 11 Home",
-        "weight": 1.32, "price": 969000,
-    },
-    {
-        "brand": "에이서", "model": "Swift 14 AI (라이젠)",
-        "screen": 14, "cpu_tier": "라이젠AI7", "cpu_detail": "AMD 라이젠 AI7 350",
-        "ram": [16, 32], "storage": [512, 1024], "os": "Windows 11 Home",
-        "weight": 1.3, "price": 1600000,
-    },
+    {"brand": "삼성", "model": "갤럭시북5 프로 14", "screen": 14, "screen_label": "35.6cm(14인치)",
+     "cpu_tier": "울트라5", "cpu_detail": "인텔 코어 울트라5(2세대) 226V",
+     "ram": [16], "storage": [256], "os": "Windows 11 Home",
+     "weight": 1.23, "price": 1799000, "video": "KX6cL4GoiBQ"},
+    {"brand": "삼성", "model": "갤럭시북5 프로 16 (울트라5)", "screen": 16, "screen_label": "40.6cm(16인치)",
+     "cpu_tier": "울트라5", "cpu_detail": "인텔 코어 울트라5(2세대) 226V",
+     "ram": [16], "storage": [256], "os": "Windows 11 Home",
+     "weight": 1.56, "price": 2099000, "video": "M-yOvBXNweE"},
+    {"brand": "삼성", "model": "갤럭시북5 프로 16 (울트라7)", "screen": 16, "screen_label": "40.6cm(16인치)",
+     "cpu_tier": "울트라7", "cpu_detail": "인텔 코어 울트라7(2세대) 258V",
+     "ram": [16, 32], "storage": [512, 1024], "os": "Windows 11 Home",
+     "weight": 1.56, "price": 2808000, "video": "M-yOvBXNweE"},
+    {"brand": "삼성", "model": "갤럭시북5 프로360 16", "screen": 16, "screen_label": "40.6cm(16인치)",
+     "cpu_tier": "울트라7", "cpu_detail": "인텔 코어 울트라7(2세대) 258V",
+     "ram": [16, 32], "storage": [512, 1024], "os": "Windows 11 Home",
+     "weight": 1.66, "price": 2926000, "video": "Y2Pn8rRZ92s"},
+    {"brand": "LG", "model": "그램 프로16 (울트라5)", "screen": 16, "screen_label": "40.6cm(16인치)",
+     "cpu_tier": "울트라5", "cpu_detail": "인텔 코어 울트라5(2세대) 225H",
+     "ram": [16], "storage": [256], "os": "Windows 11 Home",
+     "weight": 1.199, "price": 1799000, "video": "HUc5kJdy5PE"},
+    {"brand": "LG", "model": "그램 프로16 (울트라7)", "screen": 16, "screen_label": "40.6cm(16인치)",
+     "cpu_tier": "울트라7", "cpu_detail": "인텔 코어 울트라7(2세대) 255H",
+     "ram": [32], "storage": [1024], "os": "Windows 11 Home",
+     "weight": 1.199, "price": 2450000, "video": "HUc5kJdy5PE"},
+    {"brand": "LG", "model": "그램 프로360 16", "screen": 16, "screen_label": "40.6cm(16인치)",
+     "cpu_tier": "울트라7", "cpu_detail": "인텔 코어 울트라7(2세대) 255H",
+     "ram": [32], "storage": [512, 1024], "os": "Windows 11 Home",
+     "weight": 1.399, "price": 2700000, "video": "HUc5kJdy5PE"},
+    {"brand": "LG", "model": "그램북 AI 16", "screen": 16, "screen_label": "40.6cm(16인치)",
+     "cpu_tier": "라이젠AI5", "cpu_detail": "AMD 라이젠 AI5 435",
+     "ram": [16], "storage": [512], "os": "Windows 11 Home",
+     "weight": 1.199, "price": 1300000, "video": "HUc5kJdy5PE"},
+    {"brand": "LG", "model": "그램 프로17", "screen": 17, "screen_label": "43.1cm(17인치)",
+     "cpu_tier": "울트라5", "cpu_detail": "인텔 코어 울트라5(2세대) 225H",
+     "ram": [16], "storage": [256], "os": "OS 미포함(프리도스)",
+     "weight": 1.369, "price": 1998890, "video": "HUc5kJdy5PE"},
+    {"brand": "LG", "model": "울트라PC 17", "screen": 17, "screen_label": "43.1cm(17인치)",
+     "cpu_tier": "울트라5", "cpu_detail": "인텔 코어 울트라5(1세대) 125H",
+     "ram": [8], "storage": [256], "os": "OS 미포함(프리도스)",
+     "weight": 1.39, "price": 2210000, "video": None},
+    {"brand": "에이서", "model": "Swift 16 AI", "screen": 16, "screen_label": "40.6cm(16인치)",
+     "cpu_tier": "울트라7", "cpu_detail": "인텔 코어 울트라7(2세대) 258V",
+     "ram": [32], "storage": [512], "os": "Windows 11 Home",
+     "weight": 1.46, "price": 1999000, "video": "YSu4MHhK0ks"},
+    {"brand": "에이서", "model": "Swift Edge 14 AI", "screen": 14, "screen_label": "35.6cm(14인치)",
+     "cpu_tier": "울트라7", "cpu_detail": "인텔 코어 울트라7(2세대) 258V",
+     "ram": [32], "storage": [1024], "os": "Windows 11 Home",
+     "weight": 0.99, "price": 2190000, "video": None},
+    {"brand": "에이서", "model": "Swift Go 14 AI", "screen": 14, "screen_label": "35.6cm(14인치)",
+     "cpu_tier": "울트라5", "cpu_detail": "인텔 코어 울트라5(1세대)",
+     "ram": [16], "storage": [512], "os": "Windows 11 Home",
+     "weight": 1.32, "price": 969000, "video": None},
+    {"brand": "MSI", "model": "모던 A15 AI+ (F3HMG)", "screen": 15, "screen_label": "39.6cm(15.6인치)",
+     "cpu_tier": "라이젠AI5", "cpu_detail": "AMD 라이젠 AI5 330",
+     "ram": [16], "storage": [512], "os": "OS 미포함(프리도스)",
+     "weight": 1.6, "price": 1197470, "video": None},
+    {"brand": "애플", "model": "맥북 에어 13 (M4)", "screen": 14, "screen_label": "13.6인치",
+     "cpu_tier": "Apple M4", "cpu_detail": "애플 M4 (8코어 CPU)",
+     "ram": [16, 24, 32], "storage": [256, 512, 1024, 2048], "os": "macOS",
+     "weight": 1.24, "price": 1690000, "video": "532mVCw4MWQ"},
+    {"brand": "애플", "model": "맥북 에어 15 (M4)", "screen": 15, "screen_label": "15.3인치",
+     "cpu_tier": "Apple M4", "cpu_detail": "애플 M4 (10코어 CPU)",
+     "ram": [16, 24, 32], "storage": [256, 512, 1024, 2048], "os": "macOS",
+     "weight": 1.51, "price": 1990000, "video": "joQ9YhR46uY"},
 ]
 
 # ---- 제목 및 설명 ----
 st.title("💻 노트북 비교분석 챗봇")
 st.write(
-    "원하는 사양 조건을 선택하면 조건에 맞는 2025년 판매 노트북 목록이 나타납니다. "
+    "왼쪽에서 원하는 사양 조건을 선택하고 **검색 버튼**을 누르면 조건에 맞는 2025년 판매 노트북이 카드로 나타납니다. "
     "그중 2개를 골라 비교분석을 요청해보세요. "
     "사용하려면 OpenAI API 키가 필요합니다. [여기서 발급받으세요](https://platform.openai.com/account/api-keys)."
 )
@@ -95,8 +129,7 @@ st.write(
 openai_api_key = st.secrets.get("OPENAI_API_KEY", None)
 if not openai_api_key:
     openai_api_key = st.text_input(
-        "OpenAI API Key",
-        type="password",
+        "OpenAI API Key", type="password",
         help="secrets.toml에 키를 등록하면 이 입력창은 표시되지 않습니다.",
     )
 
@@ -114,108 +147,128 @@ else:
 3. 어떤 사용자에게 어떤 모델이 더 적합한지 추천
 정보가 주어지지 않은 부분은 추측하지 말고 "제공된 정보 없음"이라고 표시하세요."""
 
-    # ================= 사이드바: 사양 조건 필터 =================
+    # ================= 사이드바: 사양 조건 필터 (폼으로 묶어서 검색 버튼 클릭 시에만 반영) =================
     with st.sidebar:
         st.header("🔍 사양 조건으로 찾기")
 
-        screen_opts = sorted({item["screen"] for item in LAPTOP_DB})
-        cpu_opts = sorted({item["cpu_tier"] for item in LAPTOP_DB})
-        ram_opts = sorted({r for item in LAPTOP_DB for r in item["ram"]})
-        storage_opts = sorted({s for item in LAPTOP_DB for s in item["storage"]})
-        os_opts = sorted({item["os"] for item in LAPTOP_DB})
-        weight_min = min(item["weight"] for item in LAPTOP_DB)
-        weight_max = max(item["weight"] for item in LAPTOP_DB)
-        price_min = min(item["price"] for item in LAPTOP_DB)
-        price_max = max(item["price"] for item in LAPTOP_DB)
+        with st.form("filter_form"):
+            sel_screen = st.multiselect("화면크기대 (인치)", [14, 15, 16, 17], placeholder="전체")
+            sel_cpu = st.multiselect(
+                "CPU (인텔 코어 울트라5 이상 / AMD 라이젠AI5 이상 / Apple M4)",
+                ["울트라5", "울트라7", "라이젠AI5", "Apple M4"], placeholder="전체",
+            )
+            sel_ram = st.multiselect("램 용량 (GB)", [8, 16, 32], placeholder="전체")
+            sel_storage = st.multiselect("저장 용량대 (GB)", [256, 512, 1024, 2048], placeholder="전체")
+            sel_os = st.multiselect(
+                "운영체제", ["Windows 11 Home", "OS 미포함(프리도스)", "macOS"], placeholder="전체",
+            )
+            sel_weight = st.slider("무게 (kg)", 0.9, 2.0, (0.9, 2.0), step=0.01)
+            sel_price = st.slider("가격 (원)", 900000, 3000000, (900000, 3000000), step=50000)
 
-        sel_screen = st.multiselect("화면크기대 (인치)", screen_opts, placeholder="전체")
-        sel_cpu = st.multiselect(
-            "CPU (인텔 코어 울트라5 이상 / AMD 라이젠AI5 이상)",
-            cpu_opts, placeholder="전체",
-        )
-        sel_ram = st.multiselect("램 용량 (GB)", ram_opts, placeholder="전체")
-        sel_storage = st.multiselect("저장 용량대 (GB)", storage_opts, placeholder="전체")
-        sel_os = st.multiselect("운영체제", os_opts, placeholder="전체")
-        sel_weight = st.slider(
-            "무게 (kg)", min_value=float(weight_min), max_value=float(weight_max),
-            value=(float(weight_min), float(weight_max)), step=0.01,
-        )
-        sel_price = st.slider(
-            "가격 (원)", min_value=int(price_min), max_value=int(price_max),
-            value=(int(price_min), int(price_max)), step=50000,
-        )
+            submitted = st.form_submit_button("🔍 검색", use_container_width=True, type="primary")
 
         st.divider()
         if st.button("🗑️ 대화 초기화", use_container_width=True):
             st.session_state.messages = []
             st.rerun()
 
-    # ---- 필터링 ----
-    def matches(item):
-        if sel_screen and item["screen"] not in sel_screen:
-            return False
-        if sel_cpu and item["cpu_tier"] not in sel_cpu:
-            return False
-        if sel_ram and not set(item["ram"]) & set(sel_ram):
-            return False
-        if sel_storage and not set(item["storage"]) & set(sel_storage):
-            return False
-        if sel_os and item["os"] not in sel_os:
-            return False
-        if not (sel_weight[0] <= item["weight"] <= sel_weight[1]):
-            return False
-        if not (sel_price[0] <= item["price"] <= sel_price[1]):
-            return False
-        return True
-
-    filtered = [item for item in LAPTOP_DB if matches(item)]
-
-    # ================= 메인 화면: 조건에 맞는 노트북 목록 =================
-    st.subheader(f"📋 조건에 맞는 노트북 ({len(filtered)}개)")
-
-    if not filtered:
-        st.warning("조건에 맞는 노트북이 없습니다. 필터 조건을 완화해보세요.")
-    else:
-        table_rows = [
-            {
-                "브랜드": it["brand"],
-                "모델": it["model"],
-                "화면크기": f'{it["screen"]}인치',
-                "CPU": it["cpu_detail"],
-                "RAM": " / ".join(f"{r}GB" for r in it["ram"]),
-                "저장공간": " / ".join(f"{s}GB" for s in it["storage"]),
-                "OS": it["os"],
-                "무게": f'{it["weight"]}kg',
-                "가격": f'{it["price"]:,}원',
-            }
-            for it in filtered
-        ]
-        st.dataframe(table_rows, use_container_width=True, hide_index=True)
-
-        options = [f'{it["brand"]} {it["model"]}' for it in filtered]
-        picked = st.multiselect(
-            "비교할 노트북을 정확히 2개 선택하세요",
-            options=options,
-            max_selections=2,
-        )
-        compare_clicked = st.button("📊 선택한 2개 비교분석 요청", type="primary", disabled=len(picked) != 2)
-
     # ---- 세션 상태 초기화 ----
     if "messages" not in st.session_state:
         st.session_state.messages = []
+    if "filtered" not in st.session_state:
+        st.session_state.filtered = None  # 검색 전에는 결과 없음
 
-    # ---- 비교 요청 시 자동 프롬프트 생성 ----
-    if filtered and "compare_clicked" in dir() and compare_clicked and len(picked) == 2:
-        selected_items = [it for it in filtered if f'{it["brand"]} {it["model"]}' in picked]
-        spec_lines = []
-        for it in selected_items:
-            spec_lines.append(
-                f'- {it["brand"]} {it["model"]}: 화면 {it["screen"]}인치, CPU {it["cpu_detail"]}, '
-                f'RAM {"/".join(f"{r}GB" for r in it["ram"])}, 저장공간 {"/".join(f"{s}GB" for s in it["storage"])}, '
-                f'{it["os"]}, 무게 {it["weight"]}kg, 가격 {it["price"]:,}원'
-            )
-        auto_prompt = "다음 두 노트북을 비교분석해줘.\n" + "\n".join(spec_lines)
-        st.session_state.messages.append({"role": "user", "content": auto_prompt})
+    # ---- 검색 버튼 클릭 시에만 필터링 실행 ----
+    if submitted:
+        def matches(item):
+            if sel_screen and item["screen"] not in sel_screen:
+                return False
+            if sel_cpu and item["cpu_tier"] not in sel_cpu:
+                return False
+            if sel_ram and not set(item["ram"]) & set(sel_ram):
+                return False
+            if sel_storage and not set(item["storage"]) & set(sel_storage):
+                return False
+            if sel_os and item["os"] not in sel_os:
+                return False
+            if not (sel_weight[0] <= item["weight"] <= sel_weight[1]):
+                return False
+            if not (sel_price[0] <= item["price"] <= sel_price[1]):
+                return False
+            return True
+
+        st.session_state.filtered = [item for item in LAPTOP_DB if matches(item)]
+
+    filtered = st.session_state.filtered
+
+    # ================= 메인 화면: 조건에 맞는 노트북 카드 목록 =================
+    if filtered is None:
+        st.info("👈 왼쪽에서 조건을 선택하고 **검색** 버튼을 눌러주세요.")
+    elif not filtered:
+        st.warning("조건에 맞는 노트북이 없습니다. 필터 조건을 완화해보세요.")
+    else:
+        st.subheader(f"📋 조건에 맞는 노트북 ({len(filtered)}개)")
+
+        for idx, it in enumerate(filtered):
+            ram_txt = " / ".join(f"{r}GB" for r in it["ram"])
+            storage_txt = " / ".join(f"{s}GB" for s in it["storage"])
+
+            video_html = ""
+            if it["video"]:
+                thumb_url = f'https://img.youtube.com/vi/{it["video"]}/mqdefault.jpg'
+                watch_url = f'https://www.youtube.com/watch?v={it["video"]}'
+                video_html = (
+                    f'<a class="yt-link" href="{watch_url}" target="_blank">'
+                    f'<img class="yt-thumb" src="{thumb_url}"/></a>'
+                    f'<div><a class="yt-link" href="{watch_url}" target="_blank">▶ 리뷰 영상 보기 (YouTube)</a></div>'
+                )
+            else:
+                query = quote_plus(f'{it["brand"]} {it["model"]} 리뷰')
+                search_url = f'https://www.youtube.com/results?search_query={query}'
+                video_html = f'<a class="yt-link" href="{search_url}" target="_blank">🔎 YouTube에서 리뷰 검색</a>'
+
+            card_html = f"""
+            <div class="laptop-card">
+                <div class="laptop-thumb">
+                    <div class="laptop-thumb-box">💻</div>
+                    <div class="laptop-thumb-badge">{it["screen_label"]}<br/>{it["weight"]}kg</div>
+                </div>
+                <div class="laptop-info">
+                    <span class="laptop-tag">{it["brand"]} · {it["cpu_detail"]}</span>
+                    <div class="laptop-title">{it["model"]}</div>
+                    <div class="laptop-spec">
+                        <b>[화면]</b> {it["screen_label"]} &nbsp;/&nbsp;
+                        <b>[CPU]</b> {it["cpu_detail"]}<br/>
+                        <b>[구성]</b> RAM {ram_txt} / 저장공간 {storage_txt} &nbsp;/&nbsp; {it["os"]}<br/>
+                        <b>[무게]</b> {it["weight"]}kg
+                    </div>
+                    <div class="laptop-price">{it["price"]:,}원~</div>
+                    {video_html}
+                </div>
+            </div>
+            """
+            st.markdown(card_html, unsafe_allow_html=True)
+
+        options = [f'{it["brand"]} {it["model"]}' for it in filtered]
+        picked = st.multiselect(
+            "🆚 비교할 노트북을 정확히 2개 선택하세요", options=options, max_selections=2,
+        )
+        compare_clicked = st.button(
+            "📊 선택한 2개 비교분석 요청", type="primary", disabled=len(picked) != 2,
+        )
+
+        # ---- 비교 요청 시 자동 프롬프트 생성 ----
+        if compare_clicked and len(picked) == 2:
+            selected_items = [it for it in filtered if f'{it["brand"]} {it["model"]}' in picked]
+            spec_lines = []
+            for it in selected_items:
+                spec_lines.append(
+                    f'- {it["brand"]} {it["model"]}: 화면 {it["screen_label"]}, CPU {it["cpu_detail"]}, '
+                    f'RAM {"/".join(f"{r}GB" for r in it["ram"])}, 저장공간 {"/".join(f"{s}GB" for s in it["storage"])}, '
+                    f'{it["os"]}, 무게 {it["weight"]}kg, 가격 {it["price"]:,}원'
+                )
+            auto_prompt = "다음 두 노트북을 비교분석해줘.\n" + "\n".join(spec_lines)
+            st.session_state.messages.append({"role": "user", "content": auto_prompt})
 
     # ---- 대화 표시 ----
     st.divider()
@@ -229,17 +282,14 @@ else:
             {"role": m["role"], "content": m["content"]} for m in st.session_state.messages
         ]
         stream = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=api_messages,
-            stream=True,
+            model="gpt-4o-mini", messages=api_messages, stream=True,
         )
         with st.chat_message("assistant"):
             response = st.write_stream(stream)
         st.session_state.messages.append({"role": "assistant", "content": response})
 
     if (
-        filtered and "compare_clicked" in dir() and compare_clicked and len(picked) == 2
-        and st.session_state.messages
+        st.session_state.messages
         and st.session_state.messages[-1]["role"] == "user"
     ):
         generate_response()
